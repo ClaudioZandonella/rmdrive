@@ -6,3 +6,7 @@
 
 #----    mac auxiliary files    ----
 .DS_Store
+
+#----    authentication token    ----
+.secrets
+

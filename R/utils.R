@@ -13,9 +13,12 @@
 #' @noRd
 #'
 check_file <- function(file) {
+  # check file is a single string
+  if(!(is.character(file) && length(file) == 1L))
+    stop("file has to be a single string")
+  
   if (!file.exists(file)) {
-    stop("file does not exist: ", sQuote(file), 
-         ".\nRemember to specify name without extension ;)", call. = FALSE)
+    stop('file does not exist: "', file,'"', call. = FALSE)
   }
 }
 
@@ -66,211 +69,6 @@ check_identity <- function(local_path, local_file){
     FALSE
   }
 }
-
-#----    get_dribble    ----
-
-#' Get dribble
-#'
-#' Gets dribble ("Drive tibble") for the file name, folder, and Team Drive
-#'   provided
-#'
-#' @inheritParams upload_rmd 
-#' @return A dribble object.
-#' @noRd
-#' @seealso [googledrive::dribble()]
-
-get_dribble <- function(gfile, path = NULL, team_drive = NULL) {
-
-  if (!is.null(path)) {
-    path_dribble <- get_path_dribble(path = path, team_drive = team_drive)
-    
-    googledrive::drive_find(q = c(paste0("'", path_dribble$id,"' in parents", collapse = " or "),
-                                  paste0("name = '", gfile,"'")),
-                            team_drive = team_drive)
-    
-  } else if (is.null(path) & !is.null(team_drive)) {
-    # TODO: revise this part according to team_drive functionality
-    googledrive::team_drive_get(team_drive) %>%
-      googledrive::drive_ls(pattern = gfile)
-  } else {
-    googledrive::drive_find(q = c("'root' in parents",
-                                  paste0("name = '", gfile,"'")),
-                            team_drive = team_drive)
-  }
-}
-
-# # TODO check if dribble_old has to be removed
-# 
-# get_dribble_old <- function(gfile, path = NULL, team_drive = NULL) {
-#   if (!is.null(path)) {
-#     googledrive::drive_get(path = path, team_drive = team_drive) %>%
-#       googledrive::drive_ls(pattern = gfile)
-#   } else if (is.null(path) & !is.null(team_drive)) {
-#     googledrive::team_drive_get(team_drive) %>%
-#       googledrive::drive_ls(pattern = gfile)
-#   } else {
-#     googledrive::drive_ls(path = "~", pattern = gfile)
-#   }
-# }
-
-#----    get_path_dribble    ----
-
-#' Get path dribble
-#'
-#' Gets dribble ("Drive tibble") for the last folder provided in the path
-#' starting from root. If the required folder is not available, options to
-#' create it is proposed.
-#'
-#' @inheritParams upload_rmd
-#' @return A dribble object. Note that multiple lines could be returned if
-#'   multiple folders  exist  with the same path.
-#' @noRd
-#' 
-get_path_dribble <- function(path , team_drive = NULL){
-  # get sequence of folders
-  path <- stringr::str_split(path, pattern = "/", simplify = TRUE)[1,]
-  
-  # get folders id starting from root
-  for (i in seq_along(path)){
-    id_folders <- if(i == 1L) "root" else dribble$id
-    
-    dribble <- googledrive::drive_find(
-      q = c(paste0("'", id_folders,"' in parents", collapse = " or "), 
-            "mimeType = 'application/vnd.google-apps.folder'",
-            paste0("name = '", path[i],"'")),
-      team_drive = team_drive)
-    
-    # Check if path is available on drive
-    if(nrow(dribble) < 1){
-      # check whether user wants to create folder in Google Drive
-      response <- utils::menu(c("Yes", "No"), title = paste0(
-          "Folder ", sQuote(paste0(path, sep = "/",  collapse = "")),
-          " does not exists in GoogleDrive.", " Do you want to create it?"
-        )
-      )
-      
-      if (response == 2){
-        stop_quietly("Process arrested")
-      } else {
-        
-        # evaluate if unique parent folder is available
-        if(length(id_folders) != 1){
-          stop(paste0("No unique parent folder ", 
-                      sQuote(paste0(path[1:(i-1)], sep = "/",  collapse = "")),
-                      " exists in GoogleDrive. Folder ",
-                      sQuote(paste0(path[i:length(path)], sep = "/",  collapse = "")),
-                      " can not be created automatically."),
-               call. = FALSE)
-        } else {
-          
-          # create folder in google drive and return dribble
-          dribble <- create_drive_folder(name = path[i:length(path)],
-                                         parent_id = id_folders, 
-                                         team_drive = team_drive)
-          
-          finish_process(paste(cli::col_magenta(path), "folder created on Google Drive!"))
-          
-          return(dribble)
-        }
-      }
-    }
-  }
-  
-  return(dribble)
-}
-
-#----    get_parent_dribble    ----
-
-#' Get parent dribble
-#' 
-#' Get the dribble of the parent folder or root if path is not specified
-#' 
-#' @param path character. (Sub)directory in My Drive or a Team Drive
-#' @param team_drive character. The name of a Google Team Drive (optional).
-#'
-#' @return A dribble object.
-#'
-#' @noRd
-#' 
-get_parent_dribble <- function(path = NULL, team_drive = NULL){
-  # get dribble of the parent folder
-  if (!is.null(path)) {
-    path <- get_path_dribble(path = path, team_drive = team_drive)
-  } else if (is.null(path) & !is.null(team_drive)) {
-    path <- googledrive::team_drive_find(team_drive)
-  } else {
-    path <- get_root_id()
-  }
-  return(path)
-}
-
-#----    create_drive_folder    ----
-
-#' Create a folder in Googledrive
-#'
-#' Create a folder in Googledrive. 
-#' 
-#' !TODO! evaluate possible problems when using team_drive.
-#'
-#' @param name character vector indicating the sequence of folders to create
-#' @param parent_id a string indicating the Google Drive id of the parent folder
-#'   or "root" (default)
-#' @param team_drive a string indicating the name of a Google Team Drive
-#'   (optional).
-#'
-#' @return A dribble object with information of the created folder.
-#' @noRd
-#' 
-#' @examples  
-#' create_drive_folder(name = c("main_folder", "nested_folder"),
-#'                     parent_id = "root")
-#'                     
-create_drive_folder <- function(name, parent_id = "root", team_drive = NULL){
-  
-  if(parent_id == "root") parent_id <- get_root_id(team_drive = team_drive)
-  
-  for (i in seq_along(name)){
-    #create folder using parent id (NULL if is not available)
-    dribble_folder <- googledrive::drive_mkdir(name = name[i],
-                                               path = googledrive::as_id(parent_id),
-                                               verbose = F)
-    
-    # use folder id as parent for the next folder
-    parent_id <- dribble_folder$id
-
-  }
-  
-  return(dribble_folder)
-}
-
-#----    get_root_id    ----
-
-#' Get root id
-#'
-#' Gets drive id of the root folder. The id is obtained from the 'parents' field
-#' in the dribble object listing elements in the root directory. If no element
-#' is available in the root folder, id can not be retrieved.
-#'
-#' @inheritParams upload_rmd
-#' @return A drive_id string with the id of the root folder. Note that NULL is
-#'   returned, instead, if no element was available in the root folder.
-#' @noRd
-#' 
-get_root_id <- function(team_drive = NULL){
-  
-  # get elements with root as parent folder
-  dribble <- googledrive::drive_find(q = c("'root' in parents"),
-                                     team_drive = team_drive)
-  
-  if (nrow(dribble) > 0){
-    id_root <- googledrive::as_id(dribble$drive_resource[[1]]$parents[[1]])
-  } else {
-    id_root <- NULL
-  }
-  
-  return(id_root)
-}
-
 
 #----    sanitize_gfile    ----
 
@@ -350,5 +148,175 @@ finish_process <- function(message){
 #' @importFrom magrittr %>%
 #' @usage lhs \%>\% rhs
 NULL
+
+#----    get_file_info    ----
+
+#' Get file info
+#' 
+#' Given the path to a file, get file information about path, file-name, file
+#' extension, file-basename.
+#'
+#' @param file a string indicating the path to a file
+#'
+#' @return a list with
+#' \itemize{
+#'   \item{path: the path to the file. If there is no path \code{"."} is
+#'   returned}
+#'   \item{file_name: file name with extension}
+#'   \item{extension: the file extension without point and all lowercase}
+#'   \item{file_basename: the file name without extesion}
+#' }
+#' 
+#' @noRd
+#' 
+#' @examples
+#' get_file_info("my_folder/my_file.txt")
+#' get_file_info("my.file.txt")
+#' 
+
+get_file_info <- function(file){
+  # check file is a single string
+  if(!(is.character(file) && length(file) == 1L))
+    stop("file has to be a single string")
+  
+  # get info
+  path <- dirname(file)
+  file_name <- basename(file)
+  
+  # ensure there is extension
+  if(!grepl(pattern = "\\.", file_name))
+    stop("file do not include extension")
+  
+  # get extension as last element split "."
+  extension <- stringr::str_split(file_name, pattern = "\\.")[[1]] %>%
+    tail(n = 1)
+  
+  file_basename <- sub(pattern = paste0("\\.", extension), replacement = "",
+                       file_name)
+  
+  return(list(path = path,
+              file_name = file_name,
+              extension = tolower(extension), # get lowercase
+              file_basename = file_basename))
+}
+
+#----    get_instructions    ----
+
+#' Add Instructions
+#' 
+#' Add instruction on top of document to explain reviewdown
+#'
+#' @param file_info list with file info returned from get_file_info() function
+#' @param hide_code logical value indicating whether the code was from the
+#'   text document
+#'
+#' @return a string with the instructions 
+#' @noRd
+#'
+#' @examples
+#'   file_info <- get_file_info("tests/testthat/test_files/example_1.Rmd")
+#'   get_instructions(file_info, TRUE)
+#' 
+
+get_instructions <- function(file_info, hide_code){
+  
+  language <- switch(file_info$extension,
+                     "rmd" = "Markdown",
+                     "rnw" = "LaTeX")
+  
+
+  placeholder1 <- switch(hide_code,
+                         "TRUE" = 'Please do not remove placeholders of type "[[chunk-<name>]]" or "[[document-header]]',
+                         "FALSE" = NULL)
+  placeholder2 <- c(sprintf("FILE-NAME: %s",file_info$file_name),
+                    sprintf("HIDE-CODE: %s", hide_code))
+  
+  instructions <- c(
+    "#----Reviewdown Instructions----#",
+    sprintf("This is not a common Document. The Document includes proper formatted %s syntax and R code. Please be aware and responsible in making corrections as you could brake the code. Limit change to plain text and avoid to the specific command.",
+            language),
+    placeholder1,
+    "Once the review is terminated accept all changes: Tools -> Review suggested edits -> Accept all.",
+    "You must not modify or remove these lines, we will do it for you ;)",
+    placeholder2,
+    "#----End Instructions----#")
+  
+  return(instructions)
+}
+
+#----    format_document    ----
+
+#' Format the document as a single string
+#'
+#' @param document a vector with the content of the document
+#' @param file_info list with file info returned from get_file_info() function
+#' @param hide_code logical value indicating whether the code was from the
+#'   text document
+#'
+#' @return a string with the content of the document 
+#' @noRd 
+#'
+#' @examples
+#'   document <- readLines("tests/testthat/test_files/example_1_rmd.txt")
+#'   file_info <- get_file_info("tests/testthat/test_files/example_1.Rmd")
+#'   format_document(document, file_info = file_info, hide_code = FALSE)
+#'   
+
+format_document <- function(document, file_info, hide_code){
+  
+  # Add instructions
+  document <- c(get_instructions(file_info = file_info, 
+                                 hide_code = hide_code), document)
+  
+  # sanitize paper
+  document <- document %>% 
+    paste(collapse = "\n") %>% 
+    stringr::str_replace_all("\n\n\n", "\n\n")
+  
+  return(document)
+}
+
+#----    eval_no_dribble    ----
+
+#' Eval No Dribble
+#' 
+#' Stop if a file is already present in drive
+#'
+#' @param dribble dribble object of the files resulting from get_dribble_info()
+#'   function
+#' @param gfile string indicating the name of the gfile
+#'
+#' @return NULL
+#' @noRd
+#'
+#' @examples
+#' gfile <- "Hello-world"
+#' dribble <- get_dribble_info(gfile = gfile, path = "reading_folder")
+#' eval_no_dribble(dribble$file, gfile)
+#' 
+
+eval_no_dribble <- function(dribble, gfile){
+  if (nrow(dribble) > 0) {
+    stop(
+      "a file with this name already exists in GoogleDrive: ",
+      sQuote(gfile),
+      ". Did you mean to use `update_file()`?",
+      call. = FALSE
+    )
+  }
+}
+
+#----    output_html2pdf    ----
+
+output_html2pdf <- function(){
+
+  html2pdf <- utils::menu(c("Yes", "No"),
+                          title = paste("Transform HTML to PDF output before uploading?"))
+  
+  if(html2pdf == 1){
+    final_file <- pagedown::chrome_print(path_output)
+    
+  } 
+}
 
 #----

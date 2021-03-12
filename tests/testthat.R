@@ -1,4 +1,4 @@
 library(testthat)
-library(rmdrive)
+library(trackdown)
 
-test_check("rmdrive")
+test_check("trackdown")

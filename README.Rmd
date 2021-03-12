@@ -13,6 +13,7 @@ knitr::opts_chunk$set(
 )
 ```
 
+
 # trackdown 
 
 trackdown provides easy functions to move rmd and rmw files to googledrive for synchronous collaboration, then return it back to a local .Rmd/.Rmw for knitting.  
@@ -22,9 +23,14 @@ trackdown provides easy functions to move rmd and rmw files to googledrive for s
 This package is not on CRAN. To install it, please run the following code:
 
 ```{r eval=FALSE}
-devtools::install_github("ekothe/trackdown")
+devtools::install_github("ekothe/trackdown", 
+                        ref = "develop")
 library(trackdown)
 ```
+
+
+# Old instructions (TODO update instructions)
+
 
 # How to use
 

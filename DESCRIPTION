@@ -3,7 +3,8 @@ Title: Functions for Using Google Drive with RMarkdown and Sweave
 Version: 0.0.0.9000
 Authors@R: as.person(c(
     "Emily Kothe <emily.kothe@deakin.edu.au> [aut, cre]", 
-    "Janosch Linkersdörfer <linkersdoerfer@mailbox.org> [aut]"
+    "Janosch Linkersdörfer <linkersdoerfer@mailbox.org> [aut]",
+    "new authors [aut]"
   ))
 Description: Provides functions for sending a .Rmd file to google drive, and retrieving it after editing. 
 Depends: R (>= 3.5)
@@ -26,5 +27,7 @@ RoxygenNote: 7.1.1
 Suggests: 
     gargle,
     sodium,
-    testthat,
-    vcr
+    testthat (>= 3.0.0),
+    vcr,
+    covr
+Config/testthat/edition: 3

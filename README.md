@@ -13,9 +13,12 @@ This package is not on CRAN. To install it, please run the following
 code:
 
 ``` r
-devtools::install_github("ekothe/trackdown")
+devtools::install_github("ekothe/trackdown", 
+                        ref = "develop")
 library(trackdown)
 ```
+
+# Old instructions (TODO update instructions)
 
 # How to use
 
