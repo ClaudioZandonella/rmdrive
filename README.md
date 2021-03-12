@@ -1,11 +1,11 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# rmdrive <img src="man/figures/rmdrive_hex.png" align="right" width ="150" height="165"/>
+# trackdown
 
-`rmdrive` provides convenience functions to copy `.Rmd` files to Google
-Drive for synchronous collaborative editing, then return them back to a
-local `.Rmd` file for rendering.
+trackdown provides easy functions to move rmd and rmw files to
+googledrive for synchronous collaboration, then return it back to a
+local .Rmd/.Rmw for knitting.
 
 # Installation
 
@@ -13,7 +13,8 @@ This package is not on CRAN. To install it, please run the following
 code:
 
 ``` r
-remotes::install_github("januz/rmdrive")
+devtools::install_github("ekothe/trackdown")
+library(trackdown)
 ```
 
 # How to use

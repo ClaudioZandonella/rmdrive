@@ -352,5 +352,3 @@ finish_process <- function(message){
 NULL
 
 #----
-
-
